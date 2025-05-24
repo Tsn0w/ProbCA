@@ -1,0 +1,7 @@
+# ignore complication products
+*.vo*
+*.glob
+.*.aux
+
+# ignore local vendor folder
+vendor/

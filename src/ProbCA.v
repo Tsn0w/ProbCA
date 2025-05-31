@@ -4,38 +4,50 @@ Require Import ProbCA.Expressions.
 From Coq Require Import List.
 Import ListNotations.
 
+From Coq Require Import Reals.
+Open Scope R_scope.
 
-Open Scope prob_scope.
 
 Definition SET : Type := Type.
 Inductive Empty : SET :=.
 
 
-Module Type ProbabilityApplicativeStructure.
+Module ProbabilityApplicativeStructure.
   (* set of Codes *)
   Parameter Code : SET.
 
   (* The Application - on 2 codes returns multi-distribution of codes *)
-  Parameter App: Code -> Code -> Probability.MultiDist Code.
+  Parameter App: Code -> Code -> Probability.multi_dist Code.
+
+  (* Tells whether 2 codes are equal or not (the same) *)
+  Parameter Code_eqb : Code -> Code -> bool.
 
   (* Reduction relation, "infered" from the application *)
-  Parameter Red : Code -> Code -> Probability.prob -> Code -> Prop.
+  (* The > can not be => 0, because than we than can have termination without any outcomes
+   * But this might be ok, since if we use p = 0, then we obviously want chaos.
+   *)
+  Definition Red (cf ca: Code) (p: R) (cr: Code) : Prop :=
+    Probability.prob p /\ (Probability.prob_of_elem Code_eqb (App cf ca) cr) > p.
 
   (* Application relation, "infered" from the application also but only care if there are any results *)
   Parameter Term : Code -> Code -> Prop.
 
-  (* Progress: if terminates, exists a result *)
-  Parameter progress : forall cf ca : Code, Term cf ca -> exists (p: Probability.prob) (cr : Code),
-      Red cf ca p cr /\ Probability.gt p Probability.zero.
-
   (* Exsistence: iff reduces, can be "found" in the the md *)
-  Parameter existence: forall (cf ca cr : Code) (p: Probability.prob),
-  Red cf ca p cr <-> Probability.gt (Probability.prob_of (App cf ca) cr) p.
+  Lemma existence: forall (cf ca cr : Code) (p: R),
+    Red cf ca p cr <-> Probability.prob p /\ (Probability.prob_of_elem Code_eqb (App cf ca) cr) > p.
+  Proof.
+    intros cf ca cr p. unfold Red. reflexivity.
+  Qed.
 
-  (* define later! *)
-  Parameter Filter : Probability.MultiDist Code -> (Code -> Prop) ->  Probability.MultiDist Code -> Prop.
+  (* Progress: if terminates, exists a result *)
+  Parameter progress : forall cf ca : Code, Term cf ca -> exists (p: R) (cr : Code),
+      Red cf ca p cr /\ p > 0.
 
-  Module ProbabilityApplicativeExpression.
+  (* Examples *)
+
+End ProbabilityApplicativeStructure.
+
+Module ProbabilityApplicativeExpression.
     Export ApplicativeExpression.
 
     (* RedExpr tells whether expression reduce to code c with probability p *)
@@ -66,7 +78,6 @@ Module Type ProbabilityApplicativeStructure.
       end.
   End ProbabilityApplicativeExpression.
 
-End ProbabilityApplicativeStructure.
 
 Module Type ProbabilityCombinatoryAlgebra.
   Include ProbabilityApplicativeStructure.

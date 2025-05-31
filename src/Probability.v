@@ -1,4 +1,3 @@
-
 From Coq Require Import Reals.
 From Coq Require Import List.
 From Coq Require Import Lra.
@@ -27,48 +26,43 @@ Module Probability.
       apply Hx0. apply Hy0. apply Hx1. apply Hy1.
   Qed.
 
-  Definition MDElem (T: Type) : Type := (T * R)%type.
-  Definition valid_MD_prob (p: R) := prob p /\ p > 0.
-  Definition valid_MDElem {T: Type} (e: MDElem T) :=  valid_MD_prob (snd e).
-  Definition total_prob (T: Type) (dist : list (MDElem T)) : R :=
-  fold_right (fun e acc => snd e + acc) 0 dist.
+  Record multi_dist (T: Type) := {
+    support: list (T * R);
 
-  Definition mult_dist (T: Type) (dist: list (MDElem T)) : Prop :=
-    total_prob dist <= 1 /\ Forall valid_MDElem dist.
+    (* Validate every element has valid probability *)
+    valid_elem: Forall (fun x => prob (snd x) /\ (snd x) > 0) support;
 
-  Definition flip_list := [(1, 0.5); (0, 0.5)].
-  Example flip_multidist: mult_dist flip_list.
-  Proof.
-     unfold mult_dist. split.
-     - simpl. lra.
-     - unfold valid_MDElem. unfold valid_MD_prob. unfold prob.
+    (* Validate total probability does not surpass 1 *)
+    valid_distribution: fold_right Rplus 0%R
+      (map (fun x => snd x) support) <= 1%R;
+  }.
+
+  (* Takes multi-distribution and return its total probability *)
+  Definition total_probability {T: Type} (md: multi_dist T) : R :=
+    fold_right Rplus 0%R (map (fun x => snd x) (support md)).
+
+  Definition prob_of_elem {T: Type} (T_eq: T -> T -> bool) (md: multi_dist T) (e : T): R :=
+    fold_right Rplus 0%R (map (fun x => if (T_eq (fst x) e) then (snd x) else 0) (support md)).
+
+  Definition in_multi_dist {T: Type} (T_eq: T -> T -> bool) (md: multi_dist T) (e: T) : Prop := prob_of_elem T_eq md e > 0.
+
+
+  (******************************************* Examples *******************************************)
+  Program Definition flip {T:Type} (x y: T) : multi_dist T :=
+    {| support := [(x, 0.5); (y, 0.5)];
+    |}.
+  Next Obligation. (* Proof valid_elem *)
+    Proof.
        constructor.
-       + simpl. lra.
-       + constructor. simpl. lra. constructor.
-  Qed.
+       - simpl. unfold prob. lra.
+       - constructor.
+         + simpl. unfold prob. lra.
+         + constructor.
+    Qed.
+  Next Obligation. (* Proof valid_distribution *)
+    Proof. lra. Qed.
 
-  Definition multi_mult_dist {T U V: Type} (f : T -> U -> V) (dist1 : list (MDElem T)) (dist2 : list (MDElem U))
-      : list (MDElem V) :=
-    flat_map (fun e1: MDElem T =>
-                let (x1, p1) := e1 in
-                  map (fun e2 : MDElem U =>
-                    let (x2, p2) := e2 in (f x1 x2, p1 * p2)
-                  ) dist2
-              ) dist1.
 
-  Example flip_md_mult_flip_md_is_md: mult_dist (multi_mult_dist (fun x y => x + y) flip_list flip_list).
-  Proof.
-    unfold mult_dist. split.
-    - simpl. lra.
-    - simpl. unfold valid_MDElem. unfold valid_MD_prob. unfold prob. constructor.
-      + simpl. lra.
-      + constructor.
-        -- simpl. lra.
-        -- constructor.
-           ++ simpl. lra.
-           ++ constructor.
-              * simpl. lra.
-              * constructor.
-  Qed.
+
 
 End Probability.

@@ -1,7 +1,13 @@
 COQC=coqc
 COQFLAGS=-R src ProbCA
 
-VFILES := $(shell find src -name "*.v")
+VFILES := \
+  src/Common.v \
+  src/Expressions.v \
+  src/Probability.v \
+  src/ProbCA.v \
+  src/ModelHOL.v
+
 VOFILES := $(VFILES:.v=.vo)
 
 all: $(VOFILES)

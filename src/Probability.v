@@ -338,4 +338,66 @@ Lemma total_prob_mult_elem {T U V: Type}: forall  (f: T -> U -> V) (x: md_elem T
   | x :: xs => if Pr (fst x) then x :: filter_md Pr xs else filter_md Pr xs
   end.
 
+  Lemma total_prob_filter_valid {T: Type}: forall (Pr: T-> bool) (l: list (md_elem T)),
+    mult_dist l -> total_prob (filter_md Pr l) <= total_prob l.
+  Proof.
+    intros Pr l md. induction l as [| x xs IHxs].
+    - simpl. lra.
+    - simpl. destruct (@head_tail_md_is_md T x xs md) as [mdx mdxs].
+      destruct (Pr (fst x)) eqn:Pr_vx.
+      + simpl. apply Rplus_le_compat_l. apply IHxs. apply mdxs.
+      + unfold mult_dist in mdx. destruct mdx as [totalx validx].
+        apply Forall_inv in validx. unfold valid_md_elem, valid_md_prob in validx.
+        destruct validx as [px g0x]. specialize (IHxs mdxs).
+        apply Rle_trans with (r2 := total_prob xs).
+        * apply IHxs.
+        * lra.
+  Qed.
+
+  Lemma filter_md_is_md {T: Type}: forall (Pr: T -> bool) (l: list (md_elem T)),
+    mult_dist l -> mult_dist (filter_md Pr l).
+  Proof.
+    intros Pr l md. induction l as [|x xs IH].
+    - simpl. apply md.
+    - destruct (@head_tail_md_is_md T x xs md) as [mdx mdxs].
+      specialize (IH mdxs).
+      destruct (Pr (fst x)) eqn:Pr_vx.
+      + simpl. rewrite Pr_vx. unfold mult_dist. split.
+        * simpl.
+          assert (Hfilt: total_prob (filter_md Pr xs) <= total_prob xs)
+            by (apply total_prob_filter_valid; exact mdxs).
+          assert (H: snd x + total_prob (filter_md Pr xs) <= snd x + total_prob xs)
+            by (apply Rplus_le_compat_l; exact Hfilt).
+          assert (Hsum : snd x + total_prob xs <= 1)
+            by (destruct md as [Hsum _]; exact Hsum).
+            eapply Rle_trans; [apply H | apply Hsum].
+        * constructor.
+          -- destruct mdx as [totalx validx]. apply Forall_inv in validx. apply validx.
+          -- apply IH.
+      + simpl. rewrite Pr_vx. apply IH.
+  Qed.
+
+  Lemma filter_md_monotone {T} (l : list (md_elem T)) (Pr Pr' : T -> bool) :
+    mult_dist l -> (forall x, Pr x = true -> Pr' x = true) ->
+  total_prob (filter_md Pr l) <= total_prob (filter_md Pr' l).
+  Proof.
+    intros mdl mono_pred. induction l as [| x xs IHxs].
+    - simpl. lra.
+    - simpl. destruct (@head_tail_md_is_md T x xs mdl) as [mdx mdxs].
+      destruct (Pr (fst x)) eqn:Pr_vx.
+      + assert (Pr'_vxtrue : Pr' (fst x) = true) by now apply mono_pred.
+        rewrite Pr'_vxtrue. simpl. apply Rplus_le_compat_l. apply IHxs.
+        apply mdxs.
+      + destruct (Pr' (fst x)) eqn:Pr'_vx.
+        * simpl. eapply Rle_trans.
+          -- apply IHxs. apply mdxs.
+          -- unfold mult_dist in mdx. destruct mdx as [totalx validx].
+             apply Forall_inv in validx. unfold valid_md_elem, valid_md_prob in validx.
+             destruct validx as [px g0x].
+             apply Rle_trans with (r2 := 0 + total_prob (filter_md Pr' xs)).
+             ++ right. ring.
+             ++ apply Rplus_le_compat_r. apply Rlt_le. exact g0x.
+        * apply IHxs. apply mdxs.
+  Qed.
+
 End Probability.

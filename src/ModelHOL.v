@@ -15,21 +15,31 @@ Module ProbCAToHOL (Import PrCA : ProbCA.ProbabilityCombinatoryAlgebra).
   (* Predicate is a set of codes indicate which codes holds the predicate *)
   Definition predicate := Code -> Prop.
 
-  (* Top predicate where any code realize it *)
+  (***********************************************************************************************)
+  (*                                             Top                                             *)
+  (***********************************************************************************************)
   Definition top : predicate := fun c => True.
 
-  (* Bottom predicate where no code realize it *)
+  (***********************************************************************************************)
+  (*                                            Bottom                                           *)
+  (***********************************************************************************************)
   Definition bottom : predicate := fun c => False.
 
-  (* For Filter - assume can conver predicate to bool for simplicity, revisit later *)
+  (***********************************************************************************************)
+  (*                                      Code Decidability                                      *)
+  (***********************************************************************************************)
+  (* These are the filter logic, for now assume, revisit later *)
   Parameter dec : predicate -> (Code -> bool).
 
-  (* Is it legit to assume that?? *)
   Axiom dec_monotone :
   forall (P P' : predicate),
     (forall x, P x -> P' x) ->
     forall x, dec P x = true -> dec P' x = true.
 
+
+  (***********************************************************************************************)
+  (*                                           TermRed                                           *)
+  (***********************************************************************************************)
   (* how to better call TermRed?? modality? *)
   (* TermRed tells wheter application of 2 "models" predicate with probability p *)
   Definition TermRed (cf ca : Code) (p : R) (Pr : predicate) : Prop :=
@@ -61,5 +71,23 @@ Module ProbCAToHOL (Import PrCA : ProbCA.ProbabilityCombinatoryAlgebra).
           -- apply Probability.filter_md_monotone. apply Hvapp.
              intros x Hpx. apply (dec_monotone Pr Pr'). auto. apply Hpx.
   Qed.
+
+  (***********************************************************************************************)
+  (*                                          Entailment                                         *)
+  (***********************************************************************************************)
+  (*
+   * There are 2 options for entailment, given predicate P and Q we say P entails Q with probability
+   * p and code c if:
+   * 1. foreach realizer of P, say c', at least p-ratio codes from the application of c' and c are
+   *    are realizers for Q.
+   * 2. foreach realizer of P, say c', at least p codes from the application of c' and c are
+   *    are realizers for Q.
+   * Note the difference, in 1 we ask for total_prob (filter_md (App c' c) Q) >= p * total_prob (App c' c)
+   * while in the 2.  we just need total_prob (filter_md (App c' c) Q) >= p.
+   * When know better, see if should switch to the second one.
+   *)
+  Definition Entails (P Q: predicate) : Prop := exists (p: R) (c: Code), Probability.prob p ->
+    (forall (c': Code), P c' ->
+      Probability.total_prob (Probability.filter_md (dec Q) (App c' c)) >= p * Probability.total_prob (App c' c)).
 
 End ProbCAToHOL.
